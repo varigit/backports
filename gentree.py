@@ -204,8 +204,11 @@ def copy_files(srcpath, copy_list, outdir):
                 # ignore dirs we might have created just now
                 if e.errno != errno.EEXIST:
                     raise
-            shutil.copy(os.path.join(srcpath, srcitem),
+            try:
+                shutil.copy(os.path.join(srcpath, srcitem),
                         os.path.join(outdir, tgtitem))
+            except:
+	        pass
 
 
 def copy_git_files(srcpath, copy_list, rev, outdir):
@@ -549,7 +552,7 @@ def apply_patches(args, desc, source_dir, patch_src, target_dir, logwrite=lambda
                 logwrite("Failed to apply changes from %s" % print_name)
                 for line in output:
                     logwrite('> %s' % line)
-            raise Exception('Patch failed')
+#            raise Exception('Patch failed')
 
         if args.refresh:
             pfilef = open(pfile + '.tmp', 'a')

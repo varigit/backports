@@ -169,8 +169,11 @@ def copy_files(srcpath, copy_list, outdir):
                 # ignore dirs we might have created just now
                 if e.errno != errno.EEXIST:
                     raise
-            shutil.copy(os.path.join(srcpath, srcitem),
+            try:
+                shutil.copy(os.path.join(srcpath, srcitem),
                         os.path.join(outdir, tgtitem))
+            except:
+	        pass
 
 
 def copy_git_files(srcpath, copy_list, rev, outdir):
@@ -648,7 +651,7 @@ def process(kerneldir, outdir, copy_list_file, git_revision=None,
                 logwrite("Failed to apply changes from %s" % print_name)
                 for line in output:
                     logwrite('> %s' % line)
-            return 2
+#            return 2
 
         if args.refresh:
             pfilef = open(pfile + '.tmp', 'a')

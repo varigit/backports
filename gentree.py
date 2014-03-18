@@ -719,7 +719,7 @@ def process(kerneldir, outdir, copy_list_file, git_revision=None,
                     logwrite("Failed to apply changes from %s" % print_name)
                     for line in output:
                         logwrite('> %s' % line)
-                return 2
+#                return 2
 
             # remove cocci_backup files
             for root, dirs, files in os.walk(args.outdir):

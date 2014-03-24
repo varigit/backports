@@ -684,7 +684,7 @@ def process(kerneldir, outdir, copy_list_file, git_revision=None,
 
     sempatches.sort()
     with tempdir() as t:
-        if not args.gitdebug:
+        if not args.gitdebug and sempatches:
             # combine all spatches
             fn = os.path.join(t, 'combined.cocci')
             f = open(fn, 'w')

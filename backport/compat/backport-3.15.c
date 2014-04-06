@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/of.h>
+#include <linux/string.h>
 
 /**
  * devm_kstrdup - Allocate resource managed space and

@@ -1,0 +1,43 @@
+diff --git a/drivers/net/wireless/ti/Kconfig b/drivers/net/wireless/ti/Kconfig
+index cbe1e7f..7efca9e 100644
+--- a/drivers/net/wireless/ti/Kconfig
++++ b/drivers/net/wireless/ti/Kconfig
+@@ -13,12 +13,8 @@ source "drivers/net/wireless/ti/wl18xx/Kconfig"
+ # keep last for automatic dependencies
+ source "drivers/net/wireless/ti/wlcore/Kconfig"
+ 
+-config WILINK_PLATFORM_DATA
+-	bool "TI WiLink platform data"
+-	depends on WLCORE_SDIO || WL1251_SDIO
+-	default y
+-	---help---
+-	Small platform data bit needed to pass data to the sdio modules.
+-
++config UNIFIED_WILINK_PLATFORM_DATA
++	bool "TI Wilink platform data (Unified)"
++	default y if WILINK_PLATFORM_DATA || WL12XX_PLATFORM_DATA
+ 
+ endif # WL_TI
+diff --git a/drivers/net/wireless/ti/Makefile b/drivers/net/wireless/ti/Makefile
+index af14231..0d016ff 100644
+--- a/drivers/net/wireless/ti/Makefile
++++ b/drivers/net/wireless/ti/Makefile
+@@ -4,4 +4,4 @@ obj-$(CONFIG_WL1251)			+= wl1251/
+ obj-$(CONFIG_WL18XX)			+= wl18xx/
+ 
+ # small builtin driver bit
+-obj-$(CONFIG_WILINK_PLATFORM_DATA)	+= wilink_platform_data.o
++obj-$(CONFIG_UNIFIED_WILINK_PLATFORM_DATA)	+= wilink_platform_data.o
+diff --git a/include/linux/wl12xx.h b/include/linux/wl12xx.h
+index 8662540..ec2c071 100644
+--- a/include/linux/wl12xx.h
++++ b/include/linux/wl12xx.h
+@@ -62,7 +62,7 @@ struct wl12xx_platform_data {
+ /* Platform does not support level trigger interrupts */
+ #define WL12XX_PLATFORM_QUIRK_EDGE_IRQ	BIT(0)
+ 
+-#ifdef CONFIG_WILINK_PLATFORM_DATA
++#ifdef CONFIG_UNIFIED_WILINK_PLATFORM_DATA
+ 
+ int wl12xx_set_platform_data(const struct wl12xx_platform_data *data);
+ 

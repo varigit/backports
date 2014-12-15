@@ -1,0 +1,120 @@
+From 99168f800f47d9a483be03cdf956773ce9ed1656 Mon Sep 17 00:00:00 2001
+From: Eliad Peller <eliad@wizery.com>
+Date: Mon, 15 Dec 2014 17:08:52 +0200
+Subject: [PATCH 1/5] apply backport SmPL patch
+ collateral-evolutions/generic/0001-group-attr/0001-group_attr_class.cocci
+
+---
+ drivers/media/v4l2-core/v4l2-dev.c | 10 ++++++++++
+ net/ieee802154/sysfs.c             | 10 ++++++++++
+ net/wireless/sysfs.c               | 10 ++++++++++
+ 3 files changed, 30 insertions(+)
+
+diff --git a/drivers/media/v4l2-core/v4l2-dev.c b/drivers/media/v4l2-core/v4l2-dev.c
+index 9aa530a..b7b6784 100644
+--- a/drivers/media/v4l2-core/v4l2-dev.c
++++ b/drivers/media/v4l2-core/v4l2-dev.c
+@@ -86,7 +86,12 @@ static struct attribute *video_device_attrs[] = {
+ 	&dev_attr_index.attr,
+ 	NULL,
+ };
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ ATTRIBUTE_GROUPS(video_device);
++#else
++#define BP_ATTR_GRP_STRUCT device_attribute
++ATTRIBUTE_GROUPS_BACKPORT(video_device);
++#endif
+ 
+ /*
+  *	Active devices
+@@ -221,7 +226,11 @@ static void v4l2_device_release(struct device *cd)
+ 
+ static struct class video_class = {
+ 	.name = VIDEO_NAME,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ 	.dev_groups = video_device_groups,
++#else
++	.dev_attrs = video_device_dev_attrs,
++#endif
+ };
+ 
+ struct video_device *video_devdata(struct file *file)
+@@ -1008,6 +1017,7 @@ static int __init videodev_init(void)
+ 		return ret;
+ 	}
+ 
++	init_video_device_attrs();
+ 	ret = class_register(&video_class);
+ 	if (ret < 0) {
+ 		unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
+diff --git a/net/ieee802154/sysfs.c b/net/ieee802154/sysfs.c
+index 1613b9c..2aec368 100644
+--- a/net/ieee802154/sysfs.c
++++ b/net/ieee802154/sysfs.c
+@@ -109,16 +109,26 @@ static struct attribute *pmib_attrs[] = {
+ 	&dev_attr_cca_mode.attr,
+ 	NULL,
+ };
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ ATTRIBUTE_GROUPS(pmib);
++#else
++#define BP_ATTR_GRP_STRUCT device_attribute
++ATTRIBUTE_GROUPS_BACKPORT(pmib);
++#endif
+ 
+ struct class wpan_phy_class = {
+ 	.name = "ieee802154",
+ 	.dev_release = wpan_phy_release,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ 	.dev_groups = pmib_groups,
++#else
++	.dev_attrs = pmib_dev_attrs,
++#endif
+ };
+ 
+ int wpan_phy_sysfs_init(void)
+ {
++	init_pmib_attrs();
+ 	return class_register(&wpan_phy_class);
+ }
+ 
+diff --git a/net/wireless/sysfs.c b/net/wireless/sysfs.c
+index 9ee6bc1..c5d39ed 100644
+--- a/net/wireless/sysfs.c
++++ b/net/wireless/sysfs.c
+@@ -71,7 +71,12 @@ static struct attribute *ieee80211_attrs[] = {
+ 	&dev_attr_name.attr,
+ 	NULL,
+ };
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ ATTRIBUTE_GROUPS(ieee80211);
++#else
++#define BP_ATTR_GRP_STRUCT device_attribute
++ATTRIBUTE_GROUPS_BACKPORT(ieee80211);
++#endif
+ 
+ static void wiphy_dev_release(struct device *dev)
+ {
+@@ -149,7 +154,11 @@ struct class ieee80211_class = {
+ 	.name = "ieee80211",
+ 	.owner = THIS_MODULE,
+ 	.dev_release = wiphy_dev_release,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ 	.dev_groups = ieee80211_groups,
++#else
++	.dev_attrs = ieee80211_dev_attrs,
++#endif
+ 	.dev_uevent = wiphy_uevent,
+ #ifdef CONFIG_PM
+ 	.suspend = wiphy_suspend,
+@@ -161,6 +170,7 @@ struct class ieee80211_class = {
+ 
+ int wiphy_sysfs_init(void)
+ {
++	init_ieee80211_attrs();
+ 	return class_register(&ieee80211_class);
+ }
+ 
+-- 
+1.8.5.2.229.g4448466.dirty
+

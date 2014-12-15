@@ -1,0 +1,162 @@
+From be56efe6ad2000524cf187738ca2c0548ffadddd Mon Sep 17 00:00:00 2001
+From: Eliad Peller <eliad@wizery.com>
+Date: Mon, 15 Dec 2014 17:09:19 +0200
+Subject: [PATCH 5/5] apply backport SmPL patch
+ collateral-evolutions/network/0031-sk_data_ready.cocci
+
+---
+ net/bluetooth/l2cap_sock.c  | 18 ++++++++++++++++--
+ net/bluetooth/rfcomm/core.c | 12 ++++++++++++
+ net/bluetooth/rfcomm/sock.c |  8 ++++++++
+ net/bluetooth/sco.c         |  4 ++++
+ net/nfc/llcp_core.c         |  4 ++++
+ 5 files changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/net/bluetooth/l2cap_sock.c b/net/bluetooth/l2cap_sock.c
+index f65caf4..c3e64d5 100644
+--- a/net/bluetooth/l2cap_sock.c
++++ b/net/bluetooth/l2cap_sock.c
+@@ -1292,7 +1292,11 @@ static void l2cap_sock_teardown_cb(struct l2cap_chan *chan, int err)
+ 
+ 		if (parent) {
+ 			bt_accept_unlink(sk);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 			parent->sk_data_ready(parent);
++#else
++			parent->sk_data_ready(parent, 0);
++#endif
+ 		} else {
+ 			sk->sk_state_change(sk);
+ 		}
+@@ -1350,8 +1354,13 @@ static void l2cap_sock_ready_cb(struct l2cap_chan *chan)
+ 	sk->sk_state = BT_CONNECTED;
+ 	sk->sk_state_change(sk);
+ 
+-	if (parent)
++	if (parent) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 		parent->sk_data_ready(parent);
++#else
++		parent->sk_data_ready(parent, 0);
++#endif
++	}
+ 
+ 	release_sock(sk);
+ }
+@@ -1363,8 +1372,13 @@ static void l2cap_sock_defer_cb(struct l2cap_chan *chan)
+ 	lock_sock(sk);
+ 
+ 	parent = bt_sk(sk)->parent;
+-	if (parent)
++	if (parent) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 		parent->sk_data_ready(parent);
++#else
++		parent->sk_data_ready(parent, 0);
++#endif
++	}
+ 
+ 	release_sock(sk);
+ }
+diff --git a/net/bluetooth/rfcomm/core.c b/net/bluetooth/rfcomm/core.c
+index 73f8c75..8b5b653 100644
+--- a/net/bluetooth/rfcomm/core.c
++++ b/net/bluetooth/rfcomm/core.c
+@@ -194,6 +194,10 @@ static void rfcomm_l2data_ready(struct sock *sk)
+ 	rfcomm_schedule();
+ }
+ 
++static void backport_rfcomm_l2data_ready(struct sock *sk, int unused) {
++	rfcomm_l2data_ready(sk);
++}
++
+ static int rfcomm_l2sock_create(struct socket **sock)
+ {
+ 	int err;
+@@ -203,7 +207,11 @@ static int rfcomm_l2sock_create(struct socket **sock)
+ 	err = sock_create_kern(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP, sock);
+ 	if (!err) {
+ 		struct sock *sk = (*sock)->sk;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 		sk->sk_data_ready   = rfcomm_l2data_ready;
++#else
++		sk->sk_data_ready = backport_rfcomm_l2data_ready;
++#endif
+ 		sk->sk_state_change = rfcomm_l2state_change;
+ 	}
+ 	return err;
+@@ -1944,7 +1952,11 @@ static void rfcomm_accept_connection(struct rfcomm_session *s)
+ 		return;
+ 
+ 	/* Set our callbacks */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 	nsock->sk->sk_data_ready   = rfcomm_l2data_ready;
++#else
++	nsock->sk->sk_data_ready = backport_rfcomm_l2data_ready;
++#endif
+ 	nsock->sk->sk_state_change = rfcomm_l2state_change;
+ 
+ 	s = rfcomm_session_add(nsock, BT_OPEN);
+diff --git a/net/bluetooth/rfcomm/sock.c b/net/bluetooth/rfcomm/sock.c
+index 2348176..d2c4efb 100644
+--- a/net/bluetooth/rfcomm/sock.c
++++ b/net/bluetooth/rfcomm/sock.c
+@@ -54,7 +54,11 @@ static void rfcomm_sk_data_ready(struct rfcomm_dlc *d, struct sk_buff *skb)
+ 
+ 	atomic_add(skb->len, &sk->sk_rmem_alloc);
+ 	skb_queue_tail(&sk->sk_receive_queue, skb);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 	sk->sk_data_ready(sk);
++#else
++	sk->sk_data_ready(sk, 0);
++#endif
+ 
+ 	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
+ 		rfcomm_dlc_throttle(d);
+@@ -84,7 +88,11 @@ static void rfcomm_sk_state_change(struct rfcomm_dlc *d, int err)
+ 			sock_set_flag(sk, SOCK_ZAPPED);
+ 			bt_accept_unlink(sk);
+ 		}
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 		parent->sk_data_ready(parent);
++#else
++		parent->sk_data_ready(parent, 0);
++#endif
+ 	} else {
+ 		if (d->state == BT_CONNECTED)
+ 			rfcomm_session_getaddr(d->session,
+diff --git a/net/bluetooth/sco.c b/net/bluetooth/sco.c
+index 30e5ea3..73bc2c3 100644
+--- a/net/bluetooth/sco.c
++++ b/net/bluetooth/sco.c
+@@ -1049,7 +1049,11 @@ static void sco_conn_ready(struct sco_conn *conn)
+ 			sk->sk_state = BT_CONNECTED;
+ 
+ 		/* Wake up parent */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 		parent->sk_data_ready(parent);
++#else
++		parent->sk_data_ready(parent, 0);
++#endif
+ 
+ 		bh_unlock_sock(parent);
+ 
+diff --git a/net/nfc/llcp_core.c b/net/nfc/llcp_core.c
+index b18f07c..ecf84de 100644
+--- a/net/nfc/llcp_core.c
++++ b/net/nfc/llcp_core.c
+@@ -978,7 +978,11 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
+ 	new_sk->sk_state = LLCP_CONNECTED;
+ 
+ 	/* Wake the listening processes */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+ 	parent->sk_data_ready(parent);
++#else
++	parent->sk_data_ready(parent, 0);
++#endif
+ 
+ 	/* Send CC */
+ 	nfc_llcp_send_cc(new_sock);
+-- 
+1.8.5.2.229.g4448466.dirty
+
